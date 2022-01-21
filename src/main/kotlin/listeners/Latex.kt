@@ -18,7 +18,6 @@ import java.time.Instant
 import javax.imageio.ImageIO
 import javax.swing.JLabel
 
-@Suppress("unused")
 class Latex: ListenerAdapter() {
     private val log by SLF4J
 
