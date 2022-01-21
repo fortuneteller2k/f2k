@@ -7,6 +7,7 @@ import net.dv8tion.jda.api.events.interaction.SlashCommandEvent
 import net.dv8tion.jda.api.hooks.ListenerAdapter
 import java.time.Instant
 
+@Suppress("unused")
 class About: ListenerAdapter() {
     private val log by SLF4J
 
@@ -16,7 +17,7 @@ class About: ListenerAdapter() {
     }
 
     override fun onSlashCommand(event: SlashCommandEvent) {
-        if (event.name != "about") return;
+        if (event.name != "about" || event.isAcknowledged) return;
 
         event.replyEmbeds(
             Embed {

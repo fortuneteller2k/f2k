@@ -1,5 +1,6 @@
 package listeners
 
+import dev.minn.jda.ktx.Embed
 import dev.minn.jda.ktx.SLF4J
 import dev.minn.jda.ktx.interactions.option
 import dev.minn.jda.ktx.interactions.upsertCommand
@@ -13,9 +14,11 @@ import java.awt.Color
 import java.awt.Insets
 import java.awt.image.BufferedImage
 import java.io.File
+import java.time.Instant
 import javax.imageio.ImageIO
 import javax.swing.JLabel
 
+@Suppress("unused")
 class Latex: ListenerAdapter() {
     private val log by SLF4J
 
@@ -29,7 +32,7 @@ class Latex: ListenerAdapter() {
     }
 
     override fun onSlashCommand(event: SlashCommandEvent) {
-        if (event.name != "latex") return
+        if (event.name != "latex" || event.isAcknowledged) return
 
         event.deferReply(false).queue()
 
@@ -66,6 +69,40 @@ class Latex: ListenerAdapter() {
             event.hook.editOriginal("Rendered: `$latex` with size `$imageSize`")
                 .addFile(file)
                 .queue { file.delete() }
+        }
+    }
+
+    companion object {
+        fun describe(event: SlashCommandEvent) {
+            event.replyEmbeds(
+                Embed {
+                    title = "/latex [expression] [size?]"
+                    description = "Render LaTeX expressions."
+                    color = 0x000000
+                    timestamp = Instant.now()
+                    thumbnail = "https://upload.wikimedia.org/wikipedia/commons/thumb/9/92/LaTeX_logo.svg/1280px-LaTeX_logo.svg.png"
+
+                    field {
+                        name = "Example"
+                        value = """
+                            `/latex expression: \frac{x}{y}`
+                            `/latex expression: \lim_{x \to 0} f(x) size: 60`
+                        """.trimIndent()
+                        inline = true
+                    }
+
+                    field {
+                        name = "LaTeX resources"
+                        value = """
+                            [LaTeX/Mathematics (Wikibooks)](https://en.wikibooks.org/wiki/LaTeX/Mathematics)
+                            [List of LaTeX mathematical symbols](https://oeis.org/wiki/List_of_LaTeX_mathematical_symbols)
+                            [Subscripts and superscripts](https://www.overleaf.com/learn/latex/Subscripts_and_superscripts)
+                            [Spacing in math mode](https://www.overleaf.com/learn/latex/Spacing_in_math_mode)
+                        """.trimIndent()
+                        inline = false
+                    }
+                }
+            ).queue()
         }
     }
 }
