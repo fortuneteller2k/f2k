@@ -26,11 +26,15 @@ class Unicode: Command {
     }
 
     override suspend fun execute(event: SlashCommandEvent) {
-        event.getOption("string")?.let { opt ->
+        event.getOption("string")?.let { option ->
+            val input = option.asString
+
             event.reply("${StringJoiner("\n").apply {
-                for (i in opt.asString.indices) add(opt.asString.toCharArray()[i].let {
-                    "`${String.format("\\u%04x", it.code)}` ${Character.getName(it.code)} [$it]"
-                })
+                input.indices.forEach { i ->
+                    add(input.toCharArray()[i].let {
+                        "`${String.format("\\u%04x", it.code)}` ${Character.getName(it.code)} [$it]"
+                    })
+                }
             }}").await()
         }
     }

@@ -23,4 +23,9 @@ dependencies {
     implementation("ch.qos.logback:logback-classic:1.3.0-alpha12")
     implementation("org.apache.commons:commons-lang3:3.12.0")
     implementation("io.github.classgraph:classgraph:4.8.138")
+    implementation("com.fasterxml.jackson.core:jackson-core:2.13.1")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.13.1")
+    implementation("com.squareup.okhttp3:okhttp:4.9.3")
+    implementation("org.jetbrains.exposed:exposed-core:0.37.3")
+    implementation("org.jetbrains.exposed:exposed-jdbc:0.37.3")
 }

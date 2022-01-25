@@ -1,4 +1,6 @@
+
 import commands.*
+import commands.fates.WishHistory
 import dev.minn.jda.ktx.light
 import dev.minn.jda.ktx.listener
 import io.github.cdimascio.dotenv.dotenv
@@ -6,8 +8,10 @@ import kotlinx.coroutines.runBlocking
 import net.dv8tion.jda.api.JDA
 import net.dv8tion.jda.api.entities.Activity
 import net.dv8tion.jda.api.events.ReadyEvent
+import net.dv8tion.jda.api.events.interaction.ButtonClickEvent
 import net.dv8tion.jda.api.events.interaction.SlashCommandEvent
 import org.slf4j.LoggerFactory
+import kotlin.time.Duration.Companion.minutes
 
 suspend fun main(): Unit = runBlocking {
     val env = dotenv {
@@ -24,7 +28,7 @@ suspend fun main(): Unit = runBlocking {
 
 suspend fun JDA.listenForCommands() {
     val log = LoggerFactory.getLogger(this::class.java)
-    val commands = listOf(About(), Help(), Latex(), Ping(), Unicode())
+    val commands = listOf(About(), Help(), Latex(), Ping(), Unicode(), WishHistory())
 
     listener<ReadyEvent> {
         log.info("Initializing commands...")
@@ -40,6 +44,13 @@ suspend fun JDA.listenForCommands() {
             "latex" -> commands[2].execute(it)
             "ping" -> commands[3].execute(it)
             "unicode" -> commands[4].execute(it)
+            "wishhistory" -> commands[5].execute(it)
         }
+    }
+
+    listener<ButtonClickEvent>(timeout = 1.minutes) {
+        if (it.isAcknowledged) return@listener
+
+        commands.forEach { command -> command.handleButtons(it) }
     }
 }
