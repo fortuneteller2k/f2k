@@ -1,24 +1,21 @@
-package listeners
+package commands
 
 import dev.minn.jda.ktx.Embed
 import dev.minn.jda.ktx.SLF4J
+import dev.minn.jda.ktx.await
 import net.dv8tion.jda.api.events.ReadyEvent
 import net.dv8tion.jda.api.events.interaction.SlashCommandEvent
-import net.dv8tion.jda.api.hooks.ListenerAdapter
 import java.time.Instant
 
-@Suppress("unused")
-class About: ListenerAdapter() {
+class About: Command {
     private val log by SLF4J
 
-    override fun onReady(event: ReadyEvent) {
+    override suspend fun initialize(event: ReadyEvent) {
         log.info("/about loaded")
-        event.jda.upsertCommand("about", "Meta description.").queue()
+        event.jda.upsertCommand("about", "Meta description.").await()
     }
 
-    override fun onSlashCommand(event: SlashCommandEvent) {
-        if (event.name != "about" || event.isAcknowledged) return;
-
+    override suspend fun execute(event: SlashCommandEvent) {
         event.replyEmbeds(
             Embed {
                 title = "f2k"
@@ -33,6 +30,6 @@ class About: ListenerAdapter() {
                     inline = false
                 }
             }
-        ).queue()
+        ).await()
     }
 }

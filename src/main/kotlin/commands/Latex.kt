@@ -1,12 +1,12 @@
-package listeners
+package commands
 
 import dev.minn.jda.ktx.Embed
 import dev.minn.jda.ktx.SLF4J
+import dev.minn.jda.ktx.await
 import dev.minn.jda.ktx.interactions.option
 import dev.minn.jda.ktx.interactions.upsertCommand
 import net.dv8tion.jda.api.events.ReadyEvent
 import net.dv8tion.jda.api.events.interaction.SlashCommandEvent
-import net.dv8tion.jda.api.hooks.ListenerAdapter
 import org.apache.commons.lang3.RandomStringUtils
 import org.scilab.forge.jlatexmath.TeXConstants
 import org.scilab.forge.jlatexmath.TeXFormula
@@ -18,22 +18,20 @@ import java.time.Instant
 import javax.imageio.ImageIO
 import javax.swing.JLabel
 
-class Latex: ListenerAdapter() {
+class Latex: Command {
     private val log by SLF4J
 
-    override fun onReady(event: ReadyEvent) {
+    override suspend fun initialize(event: ReadyEvent) {
         log.info("/latex loaded")
 
         event.jda.upsertCommand("latex", "Render LaTeX expression.") {
             option<String>("expression", "LaTeX expression to render", true)
             option<Float>("size", "Image size")
-        }.queue()
+        }.await()
     }
 
-    override fun onSlashCommand(event: SlashCommandEvent) {
-        if (event.name != "latex" || event.isAcknowledged) return
-
-        event.deferReply(false).queue()
+    override suspend fun execute(event: SlashCommandEvent) {
+        event.deferReply(false).await()
 
         event.getOption("expression")?.let {
             // Check if `expression` is wrapped in backticks, if so, strip them.
@@ -65,14 +63,17 @@ class Latex: ListenerAdapter() {
 
             ImageIO.write(image, "png", file)
 
-            event.hook.editOriginal("Rendered: `$latex` with size `$imageSize`")
+            event.hook
+                .editOriginal("Rendered: `$latex` with size `$imageSize`")
                 .addFile(file)
-                .queue { file.delete() }
+                .await()
+
+            file.delete()
         }
     }
 
     companion object {
-        fun describe(event: SlashCommandEvent) {
+        suspend fun describe(event: SlashCommandEvent) {
             event.replyEmbeds(
                 Embed {
                     title = "/latex [expression] [size?]"
@@ -101,7 +102,7 @@ class Latex: ListenerAdapter() {
                         inline = false
                     }
                 }
-            ).queue()
+            ).await()
         }
     }
 }
