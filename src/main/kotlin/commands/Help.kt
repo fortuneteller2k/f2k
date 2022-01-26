@@ -1,8 +1,9 @@
 package commands
 
+import commands.wishs.Wish
 import dev.minn.jda.ktx.SLF4J
 import dev.minn.jda.ktx.await
-import dev.minn.jda.ktx.interactions.option
+import dev.minn.jda.ktx.interactions.subcommand
 import dev.minn.jda.ktx.interactions.upsertCommand
 import net.dv8tion.jda.api.events.ReadyEvent
 import net.dv8tion.jda.api.events.interaction.SlashCommandEvent
@@ -14,16 +15,15 @@ class Help: Command {
         log.info("/help loaded")
 
         event.jda.upsertCommand("help", "Help for other slash commands.") {
-            option<String>("command", "listeners.Command to get help information from.", true)
+            subcommand("latex", "Display help for /latex")
+            subcommand("wish", "Display help for /wish")
         }.await()
     }
 
     override suspend fun execute(event: SlashCommandEvent) {
-        event.getOption("command")?.let {
-            when (it.asString) {
-                "latex" -> Latex.describe(event)
-                else -> event.reply("literally don't know, don't care").await()
-            }
+        when (event.subcommandName) {
+            "latex" -> Latex.describe(event)
+            "wish" -> Wish.describe(event)
         }
     }
 }

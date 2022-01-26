@@ -1,8 +1,8 @@
-package commands.fates.api
+package commands.wishs.api
 
 import com.fasterxml.jackson.annotation.JsonProperty
+import org.jetbrains.exposed.sql.Table
 import kotlin.properties.Delegates
-
 
 class History {
     var retcode by Delegates.notNull<Int>()
@@ -14,11 +14,11 @@ class WishData {
     lateinit var page: String
     lateinit var size: String
     lateinit var total: String
-    lateinit var list: List<Wish>
+    lateinit var list: List<WishInstance>
     lateinit var region: String
 }
 
-class Wish {
+class WishInstance {
     lateinit var uid: String
     @JsonProperty("gacha_type") lateinit var gachaType: String
     @JsonProperty("item_id") lateinit var itemId: String
@@ -31,11 +31,21 @@ class Wish {
     lateinit var id: String
 }
 
-class HistoryRequest(
-    var authKey: String = "",
-    var bannerType: Int = 301,
-    var currentPage: Int = 0,
-    var lastWishId: String = "0"
-) {
-    lateinit var instance: HistoryRequest
+object WishTable: Table() {
+    val userId = varchar("user_id", 18).check { it.isNotNull() }
+    val authKey = varchar("authkey", 1100).check { it.isNotNull() }
 }
+
+enum class BannerType(val value: Int) {
+    BEGINNER(100),
+    PERMANENT(200),
+    CHARACTER(301),
+    WEAPON(302),
+    CHARACTER2(400)
+}
+
+class HistoryRequest(
+    var authKey: String,
+    var bannerType: BannerType = BannerType.CHARACTER,
+    var pageNumber: Int = 1,
+)

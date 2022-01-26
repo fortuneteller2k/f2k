@@ -1,6 +1,7 @@
 
 import commands.*
-import commands.fates.WishHistory
+import commands.wishs.Wish
+import commands.wishs.WishHistory
 import dev.minn.jda.ktx.light
 import dev.minn.jda.ktx.listener
 import io.github.cdimascio.dotenv.dotenv
@@ -28,7 +29,7 @@ suspend fun main(): Unit = runBlocking {
 
 suspend fun JDA.listenForCommands() {
     val log = LoggerFactory.getLogger(this::class.java)
-    val commands = listOf(About(), Help(), Latex(), Ping(), Unicode(), WishHistory())
+    val commands = listOf(About(), Help(), Latex(), Ping(), Unicode(), Wish(), WishHistory())
 
     listener<ReadyEvent> {
         log.info("Initializing commands...")
@@ -44,7 +45,12 @@ suspend fun JDA.listenForCommands() {
             "latex" -> commands[2].execute(it)
             "ping" -> commands[3].execute(it)
             "unicode" -> commands[4].execute(it)
-            "wishhistory" -> commands[5].execute(it)
+            "wish" -> {
+                when (it.subcommandName) {
+                    "get", "set" -> commands[5].execute(it)
+                    "history" -> commands[6].execute(it)
+                }
+            }
         }
     }
 
