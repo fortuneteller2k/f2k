@@ -1,6 +1,7 @@
 package commands
 
-import commands.wishs.Wish
+import commands.api.Command
+import commands.wishes.Wish
 import dev.minn.jda.ktx.SLF4J
 import dev.minn.jda.ktx.await
 import dev.minn.jda.ktx.interactions.subcommand
@@ -8,7 +9,7 @@ import dev.minn.jda.ktx.interactions.upsertCommand
 import net.dv8tion.jda.api.events.ReadyEvent
 import net.dv8tion.jda.api.events.interaction.SlashCommandEvent
 
-class Help: Command {
+class Help : Command {
     private val log by SLF4J
 
     override suspend fun initialize(event: ReadyEvent) {

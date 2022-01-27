@@ -1,5 +1,6 @@
 package commands
 
+import commands.api.Command
 import dev.minn.jda.ktx.Embed
 import dev.minn.jda.ktx.SLF4J
 import dev.minn.jda.ktx.await
@@ -18,7 +19,7 @@ import java.time.Instant
 import javax.imageio.ImageIO
 import javax.swing.JLabel
 
-class Latex: Command {
+class Latex : Command {
     private val log by SLF4J
 
     companion object {
@@ -37,7 +38,7 @@ class Latex: Command {
                             `/latex expression: \frac{x}{y}`
                             `/latex expression: \lim_{x \to 0} f(x) size: 60`
                         """.trimIndent()
-                        inline = true
+                        inline = false
                     }
 
                     field {

@@ -1,11 +1,12 @@
 package commands
 
+import commands.api.Command
 import dev.minn.jda.ktx.SLF4J
 import dev.minn.jda.ktx.await
 import net.dv8tion.jda.api.events.ReadyEvent
 import net.dv8tion.jda.api.events.interaction.SlashCommandEvent
 
-class Ping: Command {
+class Ping : Command {
     private val log by SLF4J
 
     override suspend fun initialize(event: ReadyEvent) {

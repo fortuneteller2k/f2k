@@ -1,5 +1,6 @@
 package commands
 
+import commands.api.Command
 import dev.minn.jda.ktx.SLF4J
 import dev.minn.jda.ktx.await
 import dev.minn.jda.ktx.interactions.option
@@ -8,7 +9,7 @@ import net.dv8tion.jda.api.events.ReadyEvent
 import net.dv8tion.jda.api.events.interaction.SlashCommandEvent
 import java.util.*
 
-class Unicode: Command {
+class Unicode : Command {
     private val log by SLF4J
 
     override suspend fun initialize(event: ReadyEvent) {
