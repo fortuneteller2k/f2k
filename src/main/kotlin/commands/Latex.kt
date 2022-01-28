@@ -8,16 +8,16 @@ import dev.minn.jda.ktx.interactions.option
 import dev.minn.jda.ktx.interactions.upsertCommand
 import net.dv8tion.jda.api.events.ReadyEvent
 import net.dv8tion.jda.api.events.interaction.SlashCommandEvent
-import org.apache.commons.lang3.RandomStringUtils
 import org.scilab.forge.jlatexmath.TeXConstants
 import org.scilab.forge.jlatexmath.TeXFormula
 import java.awt.Color
 import java.awt.Insets
 import java.awt.image.BufferedImage
-import java.io.File
+import java.io.ByteArrayOutputStream
 import java.time.Instant
 import javax.imageio.ImageIO
 import javax.swing.JLabel
+
 
 class Latex : Command {
     private val log by SLF4J
@@ -70,12 +70,10 @@ class Latex : Command {
 
         event.getOption("expression")?.let {
             // Check if `expression` is wrapped in backticks, if so, strip them.
-            val latex = when (it.asString.first() == '`' || it.asString.last() == '`') {
+            val latex = when (it.asString.first() == '`' && it.asString.last() == '`') {
                 true -> it.asString.drop(1).dropLast(1)
                 else -> it.asString
             }
-
-            val file = File("./src/main/resources/${RandomStringUtils.randomAlphabetic(7)}.png")
 
             val imageSize = when {
                 event.getOption("size") == null -> 50.0
@@ -96,14 +94,19 @@ class Latex : Command {
             label.foreground = Color(0, 0, 0)
             icon.paintIcon(label, g2d, 0, 0)
 
-            ImageIO.write(image, "png", file)
+            val byteStream = ByteArrayOutputStream()
+            val writer = ImageIO.getImageWritersByFormatName("png").next()
+            val imageStream = ImageIO.createImageOutputStream(byteStream)
+
+            writer.output = imageStream
+            writer.write(image)
+
+            imageStream.close()
 
             event.hook
                 .editOriginal("Rendered: `$latex` with size `$imageSize`")
-                .addFile(file)
+                .addFile(byteStream.toByteArray(), "output.png")
                 .await()
-
-            file.delete()
         }
     }
 }
