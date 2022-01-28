@@ -21,6 +21,8 @@ import okhttp3.Request
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import java.net.SocketTimeoutException
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 class WishHistory : Command {
     private val log by SLF4J
@@ -87,6 +89,9 @@ class WishHistory : Command {
     }
 
     override suspend fun handleButtons(event: ButtonClickEvent) {
+        if (requestResults[event.user.id]?.get(requests[event.user.id]?.bannerType)!!.isEmpty())
+            return
+
         event.deferEdit().await()
 
         when (event.componentId) {
@@ -139,17 +144,27 @@ class WishHistory : Command {
         ).await()
     }
 
-    private fun formEmbed(wishData: WishData, page: Int): MessageEmbed = EmbedBuilder {
-        title = "History for UID ${wishData.list.last().uid}"
+    private fun formEmbed(wishData: WishData, page: Int): MessageEmbed {
+        val dateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+        val targetDateFormat = DateTimeFormatter.ofPattern("MM/dd/yyyy")
 
-        description = StringBuilder().apply {
-            wishData.list.forEach { wish -> appendLine("${wish.rankType}★ - ${wish.name}") }
-        }.toString()
+        return EmbedBuilder {
+            title = "History for UID ${wishData.list.last().uid}"
 
-        footer {
-            name = "Page $page"
-        }
-    }.build()
+            description = StringBuilder().apply {
+                wishData.list.forEach { wish ->
+                    val pullDate = LocalDate.parse(wish.time, dateFormat)
+                    val pullTime = pullDate.format(targetDateFormat)
+
+                    appendLine("`[$pullTime]` ${wish.rankType}★ - ${wish.name}")
+                }
+            }.toString()
+
+            footer {
+                name = "Page $page"
+            }
+        }.build()
+    }
 
 
     @Throws(CommandException::class)
@@ -183,8 +198,11 @@ class WishHistory : Command {
                     .toString()
 
                 val initialRequest = Request.Builder().url(initialRequestUrl).build()
+
                 val initialResponse = http.newCall(initialRequest).execute().body
-                val initialHistory = mapper.readValue(initialResponse?.string(), History::class.java)
+                    ?: throw CommandException("Failed to read response from API.", 1)
+
+                val initialHistory = mapper.readValue<History>(initialResponse.string())
 
                 if (initialHistory.data == null) {
                     throw CommandException(
@@ -215,9 +233,11 @@ class WishHistory : Command {
                             .toString()
 
                         val request = Request.Builder().url(apiUrl).build()
-                        val response = http.newCall(request).execute().body
 
-                        val history = mapper.readValue(response?.string(), History::class.java)
+                        val response = http.newCall(request).execute().body
+                            ?: throw CommandException("Failed to read response from API.", 1)
+
+                        val history = mapper.readValue<History>(response.string())
 
                         if (history.data == null) {
                             throw CommandException(

@@ -23,7 +23,7 @@ class WishData {
 @JsonIgnoreProperties("count", "lang", "gacha_type", "item_id", "item_type")
 class WishInstance {
     lateinit var uid: String
-    @Suppress("unused") lateinit var time: String
+    lateinit var time: String
     lateinit var name: String
     @JsonProperty("rank_type") lateinit var rankType: String
     lateinit var id: String
