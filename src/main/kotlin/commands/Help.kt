@@ -1,30 +1,38 @@
 package commands
 
-import commands.api.Command
+import commands.api.ClientCommand
 import commands.wishes.Wish
 import dev.minn.jda.ktx.SLF4J
-import dev.minn.jda.ktx.await
-import dev.minn.jda.ktx.interactions.subcommand
-import dev.minn.jda.ktx.interactions.upsertCommand
 import net.dv8tion.jda.api.events.ReadyEvent
-import net.dv8tion.jda.api.events.interaction.SlashCommandEvent
+import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent
+import net.dv8tion.jda.api.interactions.commands.Command
+import net.dv8tion.jda.api.interactions.commands.OptionType
+import net.dv8tion.jda.api.interactions.commands.build.CommandData
+import net.dv8tion.jda.api.interactions.commands.build.Commands
+import net.dv8tion.jda.api.interactions.commands.build.OptionData
 
-class Help : Command {
+class Help : ClientCommand {
     private val log by SLF4J
 
-    override suspend fun initialize(event: ReadyEvent) {
+    override suspend fun initialize(event: ReadyEvent): CommandData {
         log.info("/help loaded")
 
-        event.jda.upsertCommand("help", "Help for other slash commands.") {
-            subcommand("latex", "Display help for /latex")
-            subcommand("wish", "Display help for /wish")
-        }.await()
+        return Commands.slash("help", "Help for other slash commands.")
+            .addOptions(
+                OptionData(OptionType.STRING, "command", "Command to get help for")
+                    .addChoices(
+                        Command.Choice("LaTeX (/latex)", "latex"),
+                        Command.Choice("Genshin Wish History", "wish")
+                    )
+            )
     }
 
-    override suspend fun execute(event: SlashCommandEvent) {
-        when (event.subcommandName) {
-            "latex" -> Latex.describe(event)
-            "wish" -> Wish.describe(event)
+    override suspend fun execute(event: SlashCommandInteractionEvent) {
+        event.getOption("command")!!.asString.let {
+            when (it) {
+                "latex" -> Latex.describe(event)
+                "wish" -> Wish.describe(event)
+            }
         }
     }
 }

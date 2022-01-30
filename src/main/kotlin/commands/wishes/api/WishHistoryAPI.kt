@@ -39,11 +39,15 @@ object WishTable: Table() {
 }
 
 enum class BannerType(val value: Int) {
-    BEGINNER(100),
     PERMANENT(200),
     CHARACTER(301),
     WEAPON(302),
-    CHARACTER2(400)
+    CHARACTER2(400);
+
+    companion object {
+        private val map = values().associateBy(BannerType::value)
+        fun fromValue(value: Int) = map[value]!!
+    }
 }
 
 class HistoryRequest(var authKey: String, var bannerType: BannerType = BannerType.CHARACTER, var pageNumber: Int = 1)

@@ -1,13 +1,15 @@
 package commands
 
-import commands.api.Command
+import commands.api.ClientCommand
 import dev.minn.jda.ktx.Embed
 import dev.minn.jda.ktx.SLF4J
 import dev.minn.jda.ktx.await
-import dev.minn.jda.ktx.interactions.option
-import dev.minn.jda.ktx.interactions.upsertCommand
 import net.dv8tion.jda.api.events.ReadyEvent
-import net.dv8tion.jda.api.events.interaction.SlashCommandEvent
+import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent
+import net.dv8tion.jda.api.interactions.commands.OptionType
+import net.dv8tion.jda.api.interactions.commands.build.CommandData
+import net.dv8tion.jda.api.interactions.commands.build.Commands
+import net.dv8tion.jda.api.interactions.commands.build.OptionData
 import org.scilab.forge.jlatexmath.TeXConstants
 import org.scilab.forge.jlatexmath.TeXFormula
 import java.awt.Color
@@ -18,15 +20,14 @@ import java.time.Instant
 import javax.imageio.ImageIO
 import javax.swing.JLabel
 
-
-class Latex : Command {
+class Latex : ClientCommand {
     private val log by SLF4J
 
     companion object {
-        suspend fun describe(event: SlashCommandEvent) {
+        suspend fun describe(event: SlashCommandInteractionEvent) {
             event.replyEmbeds(
                 Embed {
-                    title = "/latex [expression] [size?]"
+                    title = "/latex"
                     description = "Render LaTeX expressions."
                     color = 0x000000
                     timestamp = Instant.now()
@@ -56,16 +57,17 @@ class Latex : Command {
         }
     }
 
-    override suspend fun initialize(event: ReadyEvent) {
+    override suspend fun initialize(event: ReadyEvent): CommandData {
         log.info("/latex loaded")
 
-        event.jda.upsertCommand("latex", "Render LaTeX expression.") {
-            option<String>("expression", "LaTeX expression to render", true)
-            option<Float>("size", "Image size")
-        }.await()
+        return Commands.slash("latex", "Render LaTeX expression.")
+            .addOptions(
+                OptionData(OptionType.STRING, "expression", "LaTeX expression to render", true),
+                OptionData(OptionType.NUMBER, "size", "Image size")
+            )
     }
 
-    override suspend fun execute(event: SlashCommandEvent) {
+    override suspend fun execute(event: SlashCommandInteractionEvent) {
         event.deferReply(false).await()
 
         event.getOption("expression")?.let {
@@ -78,9 +80,9 @@ class Latex : Command {
             val imageSize = when {
                 event.getOption("size") == null -> 50.0
                 else -> event.getOption("size")!!.asDouble
-            }
+            }.toFloat()
 
-            val icon = TeXFormula(latex).createTeXIcon(TeXConstants.STYLE_DISPLAY, imageSize.toFloat())
+            val icon = TeXFormula(latex).createTeXIcon(TeXConstants.STYLE_DISPLAY, imageSize)
             icon.insets = Insets(5, 5, 5, 5)
 
             val image = BufferedImage(icon.iconWidth, icon.iconHeight, BufferedImage.TYPE_INT_ARGB)

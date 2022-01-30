@@ -4,32 +4,35 @@ import com.fasterxml.jackson.databind.json.JsonMapper
 import com.fasterxml.jackson.module.kotlin.KotlinFeature
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.fasterxml.jackson.module.kotlin.readValue
-import commands.api.Command
+import commands.api.ClientCommand
 import commands.api.CommandException
 import commands.api.UserID
 import commands.wishes.api.*
 import dev.minn.jda.ktx.EmbedBuilder
 import dev.minn.jda.ktx.SLF4J
 import dev.minn.jda.ktx.await
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import net.dv8tion.jda.api.entities.MessageEmbed
-import net.dv8tion.jda.api.events.interaction.ButtonClickEvent
-import net.dv8tion.jda.api.events.interaction.SlashCommandEvent
-import net.dv8tion.jda.api.interactions.components.Button
+import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent
+import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent
+import net.dv8tion.jda.api.interactions.components.buttons.Button
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
-import java.net.SocketTimeoutException
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import kotlin.time.Duration.Companion.minutes
 
-class WishHistory : Command {
+class WishHistory : ClientCommand {
     private val log by SLF4J
-    private val requests: MutableMap<UserID, HistoryRequest> = HashMap()
-    private val requestResults: MutableMap<UserID, Wishes> = HashMap()
+    private val requests = HashMap<UserID, HistoryRequest>()
+    private val requestResults = HashMap<UserID, Wishes>()
+    private lateinit var timeout: Job
 
-    override suspend fun execute(event: SlashCommandEvent) {
+    override suspend fun execute(event: SlashCommandInteractionEvent) {
         event.deferReply(false).await()
 
         val authKey = Wish.entries[event.user.id]
@@ -40,15 +43,7 @@ class WishHistory : Command {
         }
 
         event.getOption("banner")?.let {
-            val bannerType = when (it.asString) {
-                "beginner" -> BannerType.BEGINNER
-                "standard" -> BannerType.PERMANENT
-                "character" -> BannerType.CHARACTER
-                "character2" -> BannerType.CHARACTER2
-                "weapon" -> BannerType.WEAPON
-                else -> BannerType.CHARACTER
-            }
-
+            val bannerType = BannerType.fromValue(it.asLong.toInt())
             requests[event.user.id] = HistoryRequest(authKey, bannerType)
         }
 
@@ -67,8 +62,6 @@ class WishHistory : Command {
             } else {
                 requestResults[event.user.id] = requestWishData(hr, event.user.id, event.jda.httpClient)
             }
-
-
         } catch (e: CommandException) {
             log.error(e.localizedMessage)
             event.hook.editOriginal(e.responseMessage()).await()
@@ -86,9 +79,16 @@ class WishHistory : Command {
             Button.primary("prev", "\u25c0\ufe0f").asDisabled(),
             Button.primary("next", "\u25b6\ufe0f")
         ).await()
+
+        timeout = executor.launch {
+            delay(2.minutes)
+            event.hook.editOriginalComponents().await()
+        }
     }
 
-    override suspend fun handleButtons(event: ButtonClickEvent) {
+    override suspend fun handleButtons(event: ButtonInteractionEvent) {
+        timeout.cancel()
+
         if (requestResults[event.user.id]?.get(requests[event.user.id]?.bannerType)!!.isEmpty())
             return
 
@@ -100,7 +100,7 @@ class WishHistory : Command {
         }
     }
 
-    private suspend fun handlePrev(event: ButtonClickEvent) {
+    private suspend fun handlePrev(event: ButtonInteractionEvent) {
         requests[event.user.id]!!.pageNumber -= 1
 
         val data = requestResults[event.user.id]?.get(requests[event.user.id]?.bannerType)!!
@@ -120,9 +120,14 @@ class WishHistory : Command {
         event.message.editMessageEmbeds(
             formEmbed(data[requests[event.user.id]!!.pageNumber], requests[event.user.id]!!.pageNumber)
         ).await()
+
+        timeout = executor.launch {
+            delay(1.minutes)
+            event.hook.editOriginalComponents().await()
+        }
     }
 
-    private suspend fun handleNext(event: ButtonClickEvent) {
+    private suspend fun handleNext(event: ButtonInteractionEvent) {
         requests[event.user.id]!!.pageNumber += 1
 
         val data = requestResults[event.user.id]?.get(requests[event.user.id]?.bannerType)!!
@@ -142,6 +147,11 @@ class WishHistory : Command {
         event.message.editMessageEmbeds(
             formEmbed(data[requests[event.user.id]!!.pageNumber], requests[event.user.id]!!.pageNumber)
         ).await()
+
+        timeout = executor.launch {
+            delay(1.minutes)
+            event.hook.editOriginalComponents().await()
+        }
     }
 
     private fun formEmbed(wishData: WishData, page: Int): MessageEmbed {
@@ -175,34 +185,34 @@ class WishHistory : Command {
             .addModule(KotlinModule.Builder().configure(KotlinFeature.StrictNullChecks, true).build())
             .build()
 
-        try {
-            enumValues<BannerType>().forEach { banner ->
-                val pages: MutableList<WishData> = mutableListOf()
-                var lastWishId = "0"
+        enumValues<BannerType>().forEach { banner ->
+            val pages: MutableList<WishData> = mutableListOf()
+            var lastWishId = "0"
 
-                // Make a request at least every 500ms to avoid getting rate-limited.
-                delay(500L)
+            // Make a request at least every 500ms to avoid getting rate-limited.
+            delay(500L)
 
-                val initialRequestUrl = StringBuilder()
-                    .append("https://hk4e-api-os.mihoyo.com/event/gacha_info/api/getGachaLog?")
-                    .append("authkey_ver=1")
-                    .append("&sign_type=2")
-                    .append("&auth_appid=webview_gacha")
-                    .append("&init_type=${banner.value}")
-                    .append("&lang=en")
-                    .append("&authkey=${hr.authKey}")
-                    .append("&gacha_type=${banner.value}")
-                    .append("&page=1")
-                    .append("&size=12")
-                    .append("&end_id=${lastWishId}")
-                    .toString()
+            val initialRequestUrl = StringBuilder()
+                .append("https://hk4e-api-os.mihoyo.com/event/gacha_info/api/getGachaLog?")
+                .append("authkey_ver=1")
+                .append("&sign_type=2")
+                .append("&auth_appid=webview_gacha")
+                .append("&init_type=${banner.value}")
+                .append("&lang=en")
+                .append("&authkey=${hr.authKey}")
+                .append("&gacha_type=${banner.value}")
+                .append("&page=1")
+                .append("&size=12")
+                .append("&end_id=${lastWishId}")
+                .toString()
 
-                val initialRequest = Request.Builder().url(initialRequestUrl).build()
+            val initialRequest = Request.Builder().url(initialRequestUrl).build()
 
-                val initialResponse = http.newCall(initialRequest).execute().body
-                    ?: throw CommandException("Failed to read response from API.", 1)
+            http.newCall(initialRequest).execute().use { initialResponse ->
+                if (!initialResponse.isSuccessful)
+                    throw CommandException("Failed to request data from API. Got code ${initialResponse.code}", 1)
 
-                val initialHistory = mapper.readValue<History>(initialResponse.string())
+                val initialHistory = mapper.readValue<History>(initialResponse.body!!.string())
 
                 if (initialHistory.data == null) {
                     throw CommandException(
@@ -233,11 +243,12 @@ class WishHistory : Command {
                             .toString()
 
                         val request = Request.Builder().url(apiUrl).build()
+                        val response = http.newCall(request).execute()
 
-                        val response = http.newCall(request).execute().body
-                            ?: throw CommandException("Failed to read response from API.", 1)
+                        if (!response.isSuccessful)
+                            throw CommandException("Failed to request data from API. Got code ${response.code}", 1)
 
-                        val history = mapper.readValue<History>(response.string())
+                        val history = mapper.readValue<History>(response.body!!.string())
 
                         if (history.data == null) {
                             throw CommandException(
@@ -259,8 +270,6 @@ class WishHistory : Command {
 
                 wishes[banner] = pages
             }
-        } catch (e: SocketTimeoutException) {
-            throw CommandException("Timed out.", 1, e)
         }
 
         // Cache the result, for future use

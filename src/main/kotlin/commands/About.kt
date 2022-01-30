@@ -1,22 +1,24 @@
 package commands
 
-import commands.api.Command
+import commands.api.ClientCommand
 import dev.minn.jda.ktx.Embed
 import dev.minn.jda.ktx.SLF4J
 import dev.minn.jda.ktx.await
 import net.dv8tion.jda.api.events.ReadyEvent
-import net.dv8tion.jda.api.events.interaction.SlashCommandEvent
+import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent
+import net.dv8tion.jda.api.interactions.commands.build.CommandData
+import net.dv8tion.jda.api.interactions.commands.build.Commands
 import java.time.Instant
 
-class About : Command {
+class About : ClientCommand {
     private val log by SLF4J
 
-    override suspend fun initialize(event: ReadyEvent) {
+    override suspend fun initialize(event: ReadyEvent): CommandData {
         log.info("/about loaded")
-        event.jda.upsertCommand("about", "Meta description.").await()
+        return Commands.slash("about", "Meta description.")
     }
 
-    override suspend fun execute(event: SlashCommandEvent) {
+    override suspend fun execute(event: SlashCommandInteractionEvent) {
         event.replyEmbeds(
             Embed {
                 title = "f2k"
