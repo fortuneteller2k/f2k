@@ -11,14 +11,12 @@ import commands.wishes.api.WishTable.userId
 import dev.minn.jda.ktx.Embed
 import dev.minn.jda.ktx.SLF4J
 import dev.minn.jda.ktx.await
+import dev.minn.jda.ktx.interactions.choice
+import dev.minn.jda.ktx.interactions.option
+import dev.minn.jda.ktx.interactions.subcommand
+import dev.minn.jda.ktx.interactions.upsertCommand
 import net.dv8tion.jda.api.events.ReadyEvent
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent
-import net.dv8tion.jda.api.interactions.commands.Command
-import net.dv8tion.jda.api.interactions.commands.OptionType
-import net.dv8tion.jda.api.interactions.commands.build.CommandData
-import net.dv8tion.jda.api.interactions.commands.build.Commands
-import net.dv8tion.jda.api.interactions.commands.build.OptionData
-import net.dv8tion.jda.api.interactions.commands.build.SubcommandData
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
@@ -35,7 +33,7 @@ class Wish : ClientCommand {
         internal val caches: MutableMap<UserID, CachedWishJSON> = HashMap()
 
         suspend fun describe(event: SlashCommandInteractionEvent) {
-            event.replyEmbeds(
+            event.hook.editOriginalEmbeds(
                 Embed {
                     title = "/wish"
                     description = "Retrieve wish history."
@@ -50,16 +48,14 @@ class Wish : ClientCommand {
                             `/wish get`
                             `/wish history banner: Character Event Wish`
                         """.trimIndent()
-                        inline = false
+                        inline = true
                     }
                 }
             ).await()
         }
     }
 
-    override suspend fun initialize(event: ReadyEvent): CommandData {
-        log.info("/wish loaded")
-
+    override suspend fun initialize(event: ReadyEvent) {
         transaction {
             SchemaUtils.createMissingTablesAndColumns(WishTable)
 
@@ -69,28 +65,29 @@ class Wish : ClientCommand {
             }
         }
 
-        return Commands.slash("wish", "Wish history related commands.")
-            .addSubcommands(
-                SubcommandData("get", "Retrieve API key."),
-                SubcommandData("set", "Save API key from URL.")
-                    .addOption(OptionType.STRING, "url", "URL containing API key", true),
-                SubcommandData("history", "Retrieve wish history from API.")
-                    .addOptions(
-                        OptionData(OptionType.INTEGER, "banner", "Banner to retrieve history from", true)
-                            .addChoices(
-                                Command.Choice("Standard Wish", 200),
-                                Command.Choice("Character Event Wish", 301),
-                                Command.Choice("Character Event Wish-2", 400),
-                                Command.Choice("Weapon Event Wish", 302)
-                            )
-                    ),
-                SubcommandData("invalidate", "Invalidates any cached wish history.")
-            )
+        event.jda.upsertCommand("wish", "Wish history related commands.") {
+            subcommand("get", "Retrieve API key.")
+
+            subcommand("set", "Save API key from URL.") {
+                option<String>("url", "URL containing API key", true)
+            }
+
+            subcommand("history", "Retrieve wish history from API.") {
+                option<Int>("banner", "Banner to retrieve history from", true) {
+                    choice("Standard Wish", 200)
+                    choice("Character Event Wish", 301)
+                    choice("Character Event Wish-2", 400)
+                    choice("Weapon Event Wish", 302)
+                }
+            }
+
+            subcommand("invalidate", "Invalidates any cached wish history.")
+        }.await()
+
+        log.info("/wish loaded")
     }
 
     override suspend fun execute(event: SlashCommandInteractionEvent) {
-        event.deferReply(false).await()
-
         when (event.subcommandName) {
             "get" -> {
                 val userKey = entries[event.user.id]

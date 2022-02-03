@@ -10,10 +10,11 @@ import kotlinx.coroutines.runBlocking
 import net.dv8tion.jda.api.JDA
 import net.dv8tion.jda.api.entities.Activity
 import net.dv8tion.jda.api.events.ReadyEvent
+import net.dv8tion.jda.api.events.ResumedEvent
+import net.dv8tion.jda.api.events.ShutdownEvent
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent
 import net.dv8tion.jda.api.exceptions.ErrorResponseException
-import net.dv8tion.jda.api.interactions.commands.build.CommandData
 import org.jetbrains.exposed.sql.Database
 import org.slf4j.LoggerFactory
 import kotlin.system.exitProcess
@@ -34,32 +35,21 @@ suspend fun main(): Unit = runBlocking {
         setActivity(Activity.watching("for SlashCommandEvents"))
         setBulkDeleteSplittingEnabled(false)
         setLargeThreshold(50)
-    }.also { it.listenForCommands() }
+    }.also { it.initialize() }
 }
 
-suspend fun JDA.listenForCommands() {
+suspend fun JDA.initialize() {
     val log = LoggerFactory.getLogger(this::class.java)
     val commands = listOf(About(), Help(), Latex(), Ping(), RemoteMessage(), Unicode(), Wish(), WishHistory())
     var commandsInitialized = false
 
     listener<ReadyEvent> {
-        log.info("Initializing commands...")
-
         try {
+            // Initialize commands for the first ReadyEvent, don't re-initialize after reconnecting
             if (!commandsInitialized) {
-                val commandData = mutableListOf<CommandData>().apply {
-                    commands.forEach { command ->
-                        val data = command.initialize(it)
+                log.info("Initializing commands...")
+                commands.forEach { command -> command.initialize(it) }
 
-                        if (data == null) {
-                            return@forEach
-                        } else {
-                            add(data)
-                        }
-                    }
-                }
-
-                updateCommands().addCommands(commandData).await()
                 log.info("Finished loading commands.")
                 commandsInitialized = true
             }
@@ -70,8 +60,18 @@ suspend fun JDA.listenForCommands() {
         }
     }
 
+    listener<ResumedEvent> {
+        log.info("Resumed session.")
+    }
+
+    listener<ShutdownEvent> {
+        log.info("Shutting down...")
+        exitProcess(it.code)
+    }
+
     listener<SlashCommandInteractionEvent> {
         if (it.isAcknowledged) return@listener
+        it.deferReply(false).await()
 
         when (it.name) {
             "about" -> commands[0].execute(it)
@@ -91,7 +91,7 @@ suspend fun JDA.listenForCommands() {
 
     listener<ButtonInteractionEvent> {
         if (it.isAcknowledged) return@listener
-
+        it.deferEdit().await()
         commands.forEach { command -> command.handleButtons(it) }
     }
 }

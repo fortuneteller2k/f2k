@@ -4,12 +4,10 @@ import commands.api.ClientCommand
 import dev.minn.jda.ktx.Embed
 import dev.minn.jda.ktx.SLF4J
 import dev.minn.jda.ktx.await
+import dev.minn.jda.ktx.interactions.option
+import dev.minn.jda.ktx.interactions.upsertCommand
 import net.dv8tion.jda.api.events.ReadyEvent
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent
-import net.dv8tion.jda.api.interactions.commands.OptionType
-import net.dv8tion.jda.api.interactions.commands.build.CommandData
-import net.dv8tion.jda.api.interactions.commands.build.Commands
-import net.dv8tion.jda.api.interactions.commands.build.OptionData
 import org.scilab.forge.jlatexmath.TeXConstants
 import org.scilab.forge.jlatexmath.TeXFormula
 import java.awt.Color
@@ -25,7 +23,7 @@ class Latex : ClientCommand {
 
     companion object {
         suspend fun describe(event: SlashCommandInteractionEvent) {
-            event.replyEmbeds(
+            event.hook.editOriginalEmbeds(
                 Embed {
                     title = "/latex"
                     description = "Render LaTeX expressions."
@@ -57,19 +55,16 @@ class Latex : ClientCommand {
         }
     }
 
-    override suspend fun initialize(event: ReadyEvent): CommandData {
-        log.info("/latex loaded")
+    override suspend fun initialize(event: ReadyEvent) {
+        event.jda.upsertCommand("latex", "Render LaTeX expression.") {
+            option<String>("expression", "LaTeX expression to render", true)
+            option<Double>("size", "Image size")
+        }.await()
 
-        return Commands.slash("latex", "Render LaTeX expression.")
-            .addOptions(
-                OptionData(OptionType.STRING, "expression", "LaTeX expression to render", true),
-                OptionData(OptionType.NUMBER, "size", "Image size")
-            )
+        log.info("/latex loaded")
     }
 
     override suspend fun execute(event: SlashCommandInteractionEvent) {
-        event.deferReply(false).await()
-
         event.getOption("expression")?.let {
             // Check if `expression` is wrapped in backticks, if so, strip them.
             val latex = when (it.asString.first() == '`' && it.asString.last() == '`') {

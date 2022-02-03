@@ -33,8 +33,6 @@ class WishHistory : ClientCommand {
     private lateinit var timeout: Job
 
     override suspend fun execute(event: SlashCommandInteractionEvent) {
-        event.deferReply(false).await()
-
         val authKey = Wish.entries[event.user.id]
 
         if (authKey == null) {
@@ -43,7 +41,7 @@ class WishHistory : ClientCommand {
         }
 
         event.getOption("banner")?.let {
-            val bannerType = BannerType.fromValue(it.asLong.toInt())
+            val bannerType = BannerType.fromValue(it.asLong)
             requests[event.user.id] = HistoryRequest(authKey, bannerType)
         }
 
@@ -91,8 +89,6 @@ class WishHistory : ClientCommand {
 
         if (requestResults[event.user.id]?.get(requests[event.user.id]?.bannerType)!!.isEmpty())
             return
-
-        event.deferEdit().await()
 
         when (event.componentId) {
             "prev" -> handlePrev(event)

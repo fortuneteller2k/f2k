@@ -38,7 +38,7 @@ object WishTable: Table() {
     val cachedWishJson = varchar("cached_wish", 1_000_000_000).nullable()
 }
 
-enum class BannerType(val value: Int) {
+enum class BannerType(val value: Long) {
     PERMANENT(200),
     CHARACTER(301),
     WEAPON(302),
@@ -46,7 +46,7 @@ enum class BannerType(val value: Int) {
 
     companion object {
         private val map = values().associateBy(BannerType::value)
-        fun fromValue(value: Int) = map[value]!!
+        fun fromValue(value: Long) = map[value]!!
     }
 }
 

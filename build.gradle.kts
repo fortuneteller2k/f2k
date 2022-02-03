@@ -12,13 +12,14 @@ repositories {
 
 val exposedVersion: String by project
 val jacksonVersion: String by project
+val jdaKtxCommit: String by project
 
 dependencies {
     implementation("net.dv8tion", "JDA", "5.0.0-alpha.5") {
         exclude(module = "opus-java")
     }
 
-    implementation("com.github.minndevelopment", "jda-ktx", "d3c6b4d")
+    implementation("com.github.minndevelopment", "jda-ktx", jdaKtxCommit)
     implementation("io.github.cdimascio", "dotenv-kotlin", "6.2.2")
     implementation("org.jetbrains.kotlin", "kotlin-stdlib")
     implementation("org.jetbrains.kotlinx", "kotlinx-coroutines-core", "1.6.0")
